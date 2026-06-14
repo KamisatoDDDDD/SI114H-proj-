@@ -12,7 +12,7 @@ def residual(method_type, m_oo, C_oo, m, C):
     if method_type == "gradient_descent":          # 欧几里得 GF (4.32)
         dm = -np.linalg.solve(C_oo, m - m_oo)
         dC = 0.5 * np.linalg.inv(C) - 0.5 * np.linalg.inv(C_oo)
-    elif method_type == "natural_gradient_descent":  # Fisher-Rao GF (4.18) 按照用户原代码
+    elif method_type == "natural_gradient_descent":  # Fisher-Rao GF (4.18)
         dm = - C @ np.linalg.solve(C_oo, m - m_oo)
         dC = C - C @ np.linalg.solve(C_oo, C)
     elif method_type == "wasserstein_gradient_descent":  # Wasserstein GF (4.24)
@@ -41,11 +41,8 @@ def continuous_dynamics(method_type, m_oo, C_oo, m0, C0, dt, n_steps):
 # ----------------------------- 主程序 -----------------------------
 np.random.seed(42)
 N_θ = 2
-# 注意：原用户 Julia 代码中 m0=[1,1], C0=4I，与论文不同，但为了复现其代码，保留
 m0 = np.array([10.0, 10.0])
 C0 = np.diag([0.5, 2.0])
-# 若需按论文设置，取消下一行注释
-# m0, C0 = np.array([10.0,10.0]), np.diag([0.5,2.0])
 
 ϵs = [0.01, 0.1, 1.0]
 dt = 5e-3
@@ -56,20 +53,21 @@ n_proj = 20
 omega = np.random.randn(n_proj, N_θ)
 b = np.random.uniform(0, 2*np.pi, n_proj)
 
-fig, axes = plt.subplots(3, 3, figsize=(12, 12), sharex=True, sharey='row')
+# 修改：与“加上新方法后的对数凹粒子.py”保持一致的图像大小和布局
+fig, axes = plt.subplots(3, 3, figsize=(12, 10))  # 原为 12,12，现改为 12,10
+# 取消 sharey='row'，改为手动设置 ylim（已有），以匹配对数凹粒子风格
+# axes 现在是 (3,3) 数组，直接使用
 
 for idx_ϵ, ϵ in enumerate(ϵs):
     m_oo = np.array([0.0, 0.0])
     C_oo = np.diag([1.0, 1.0/ϵ])
 
-    # 计算三种高斯近似方法
     m_gd, C_gd = continuous_dynamics("gradient_descent", m_oo, C_oo, m0, C0, dt, n_steps)
     m_wgd, C_wgd = continuous_dynamics("wasserstein_gradient_descent", m_oo, C_oo, m0, C0, dt, n_steps)
     m_ngd, C_ngd = continuous_dynamics("natural_gradient_descent", m_oo, C_oo, m0, C0, dt, n_steps)
 
     cos_ref = cos_error_estimation_particle(m_oo, C_oo, omega, b)
 
-    # 计算误差
     def compute_errors(m_hist, C_hist):
         mean_err = np.linalg.norm(m_hist - m_oo, axis=1)
         cov_err = np.array([np.linalg.norm(C - C_oo, ord='fro') / np.linalg.norm(C_oo, ord='fro') for C in C_hist])
@@ -101,7 +99,8 @@ for idx_ϵ, ϵ in enumerate(ϵs):
     axes[1, idx_ϵ].set_ylim([1.2e-4, 5e0])
     axes[2, idx_ϵ].set_ylim([1.2e-4, 2e0])
     for j in range(3):
-        axes[j, idx_ϵ].grid(True)
+        axes[j, idx_ϵ].grid(True, linestyle='--', alpha=0.5)
+        axes[j, idx_ϵ].set_xlabel('Time t')
 
 handles, labels = axes[0,0].get_legend_handles_labels()
 fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 0.99), ncol=3)
